@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIBLE GENERATION Efata Timika - Digital Ministry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    
+    <style>
+        :root { --primary: #67e4f8af; --accent: #ed8cbfbd; }
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: radial-gradient(circle at top right, #aab8c6, #617b9d);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        /* Glassmorphism Styles */
+        .glass-sidebar {
+            background: rgba(239, 243, 243, 0.95);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .glass-card {
+            background: rgba(178, 235, 165, 0.514);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 32px;
+            box-shadow: 0 20px 40px -15px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-item { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); position: relative; }
+        .sidebar-item:hover { background: rgba(0,0,0,0.05); }
+        .sidebar-item.active {
+            background: var(--primary) !important;
+            color: white !important;
+            box-shadow: 0 10px 20px -5px rgba(4, 24, 2, 0.4);
+            transform: translateX(5px);
+        }
+
+        /* Logic Tampilan Admin vs Visitor */
+        body.visitor-mode .admin-only { display: none !important; }
+        body.admin-mode .visitor-only { display: none !important; }
+        
+        section { display: none; animation: fadeIn 0.4s ease; }
+        section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 768px) {
+            aside { position: fixed; left: -100%; height: 100%; transition: 0.3s; z-index: 50; width: 80%; max-width: 300px; }
+            aside.mobile-open { left: 0; box-shadow: 10px 0 30px rgba(0,0,0,0.2); }
+            main { padding: 1.5rem; }
+            .overlay-mobile { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; }
+            .overlay-mobile.active { display: block; }
+        }
+
+        .profile-img-slot {
+            width: 400px; height:300px;
+            border-radius: 30px;
+            object-fit: cover;
+            background: #e2e8f0;
+            border: 4px solid white;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="visitor-mode">
+
+<div class="overlay-mobile" onclick="toggleSidebar()"></div>
+
+<div class="flex h-screen overflow-hidden">
+    <aside class="glass-sidebar flex flex-col p-6 h-full">
+        <div class="mb-8 px-2">
+            <div class="flex items-center gap-3 mb-6 relative group">
+                <div class="w-15 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg overflow-hidden border-2 border-white shrink-0 relative">
+                    <img id="logo-img" src="" class="w-full h-full object-cover hidden">
+                    <span id="logo-text" class="text-white font-extrabold text-xl">BG</span>
+                    <input type="file" id="upload-logo" class="hidden" accept="image/*" onchange="processImage(this, 'logo')">
+                    <button onclick="document.getElementById('upload-logo').click()" class="admin-only absolute inset-0 bg-black/50 text-white text-[8px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition">Ganti</button>
+                </div>
+                <div class="overflow-hidden">
+                    <h2 class="text-lg font-extrabold text-slate-900 leading-none truncate">BIBLE GENERATION</h2>
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">GPSdi efata timika</span>
+                </div>
+            </div>
+            
+            <div class="visitor-only flex items-center gap-2 px-3 py-1 bg-slate-200/50 rounded-full w-fit">
+                <span class="w-2 h-2 bg-slate-400 rounded-full animate-pulse"></span>
+                <span class="text-[10px] font-bold text-slate-500 uppercase">Guest Mode</span>
+            </div>
+            <div class="admin-only flex items-center gap-2 px-3 py-1 bg-emerald-100/50 rounded-full w-fit">
+                <span class="w-2 h-2 bg-emerald-500 rounded-full"></span>
+                <span class="text-[10px] font-bold text-emerald-600 uppercase">Admin Mode</span>
+            </div>
+        </div>
+
+        <nav class="flex-1 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
+            <button onclick="switchTab('visimisi', this)" class="sidebar-item active w-full flex items-center gap-4 px-4 py-1 rounded-2xl text-slate-600 font-bold text-sm text-left">
+                <span class="text-lg">🎯</span> Visi & Misi
+            </button>
+            <button onclick="switchTab('struktur', this)" class="sidebar-item w-full flex items-center gap-4 px-4 py-1 rounded-2xl text-slate-600 font-bold text-sm text-left">
+                <span class="text-lg">👔</span> Struktur
+            </button>
+            <button onclick="switchTab('jadwal', this)" class="sidebar-item w-full flex items-center gap-4 px-4 py-1 rounded-2xl text-slate-600 font-bold text-sm text-left">
+                <span class="text-lg">⏰</span> Jadwal
+            </button>
+            <button onclick="switchTab('ultah', this)" class="sidebar-item w-full flex items-center gap-4 px-4 py-1 rounded-2xl text-slate-600 font-bold text-sm text-left">
+                <span class="text-lg">🎂</span> Ulang Tahun
+            </button>
+            <button onclick="switchTab('jemaat', this)" class="sidebar-item w-full flex items-center gap-4 px-4 py-31 rounded-2xl text-slate-600 font-bold text-sm text-left">
+                <span class="text-lg">👥</span> Data Pemuda
+            </button>
+            <button onclick="switchTab('keuangan', this)" class="sidebar-item w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-slate-600 font-bold text-sm text-left">
+                <span class="text-lg">💰</span> Keuangan
+            </button>
+            <button onclick="switchTab('lokasi', this)" class="sidebar-item w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-slate-600 font-bold text-sm text-left">
+                <span class="text-lg">📍</span> Lokasi
+            </button>
+        </nav>
+
+        <div class="mt-4 pt-4 border-t border-slate-200 space-y-2">
+            <div class="visitor-only">
+                <button onclick="openLoginModal()" class="w-full bg-slate-900 text-white py-3 rounded-xl font-bold text-xs shadow-lg hover:bg-indigo-600 transition">🔑 Login Pengurus</button>
+            </div>
+            <div class="admin-only space-y-2">
+                <input type="file" id="upload-bg" class="hidden" accept="image/*" onchange="processImage(this, 'bg')">
+                <button onclick="document.getElementById('upload-bg').click()" class="w-full bg-white border border-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-50">🖼️ Ganti Background</button>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="openPassModal()" class="bg-indigo-50 text-indigo-600 py-2 rounded-xl text-xs font-bold">Ubah Pass</button>
+                    <button onclick="doLogout()" class="bg-rose-50 text-rose-600 py-2 rounded-xl text-xs font-bold">Logout</button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 overflow-y-auto p-6 md:p-12 relative">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <button onclick="toggleSidebar()" class="md:hidden mb-4 bg-white px-4 py-2 rounded-xl shadow-sm font-bold text-slate-800 text-sm flex items-center gap-2">
+                    <span>☰</span> Menu
+                </button>
+                <h1 id="page-title" class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">Visi & Misi</h1>
+                <p class="text-slate-700 font-medium text-sm mt-1">Sistem Informasi Digital - Efata Timika</p>
+            </div>
+            
+            <div id="header-btns" class="hidden flex gap-2">
+                <button onclick="exportData('pdf')" class="bg-white hover:bg-rose-50 text-rose-600 px-4 py-2 rounded-xl shadow-sm border border-rose-100 font-bold text-xs flex items-center gap-2">
+                    📄 PDF
+                </button>
+                <button onclick="exportData('excel')" class="bg-white hover:bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl shadow-sm border border-emerald-100 font-bold text-xs flex items-center gap-2">
+                    📊 Excel
+                </button>
+            </div>
+        </header>
+
+        <section id="tab-visimisi" class="active">
+            <div class="glass-card p-6 md:p-10 relative overflow-hidden group">
+                <button onclick="toggleEdit('vm')" class="admin-only absolute top-6 right-6 bg-indigo-100 text-indigo-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-indigo-200">Edit</button>
+                
+                <div id="vm-view">
+                    <div class="mb-10">
+                        <span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest">Visi</span>
+                        <h2 id="v-text" class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-4 leading-tight"></h2>
+                    </div>
+                    <div>
+                        <span class="bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest">Misi</span>
+                        <p id="m-text" class="text-slate-700 mt-4 whitespace-pre-line leading-relaxed text-lg font-medium"></p>
+                    </div>
+                </div>
+
+                <div id="vm-edit" class="hidden space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase">Edit Visi</label>
+                        <textarea id="v-input" rows="3" class="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 focus:ring-2 ring-indigo-500 outline-none font-bold text-slate-800"></textarea>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-500 uppercase">Edit Misi</label>
+                        <textarea id="m-input" rows="6" class="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 focus:ring-2 ring-indigo-500 outline-none text-slate-700"></textarea>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="saveEdit('vm')" class="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700">Simpan Perubahan</button>
+                        <button onclick="toggleEdit('vm')" class="bg-slate-200 text-slate-600 px-6 py-2 rounded-xl font-bold hover:bg-slate-300">Batal</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-struktur">
+            <div class="admin-only mb-6 flex justify-end">
+                <button onclick="addStruktur()" class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-2 rounded-xl font-bold text-sm shadow-lg flex items-center gap-2 transition hover:-translate-y-1">
+                    <span>➕</span> Tambah Pengurus
+                </button>
+            </div>
+            <div id="struktur-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+        </section>
+
+        <section id="tab-jadwal">
+            <div class="glass-card p-6 md:p-10 relative">
+                <button onclick="toggleEdit('jadwal')" class="admin-only absolute top-6 right-6 bg-indigo-100 text-indigo-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-indigo-200">Ubah</button>
+                
+                <div id="jadwal-view" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+                
+                <div id="jadwal-edit" class="hidden">
+                    <label class="text-xs font-bold text-slate-500 uppercase mb-2 block">Format: Hari, Jam - Nama Kegiatan (Satu per baris)</label>
+                    <textarea id="jadwal-input" rows="8" class="w-full bg-slate-50 p-4 rounded-xl border border-slate-200 focus:ring-2 ring-indigo-500 outline-none mb-4 font-mono text-sm"></textarea>
+                    <div class="flex gap-2">
+                        <button onclick="saveEdit('jadwal')" class="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold">Simpan</button>
+                        <button onclick="toggleEdit('jadwal')" class="bg-slate-200 text-slate-600 px-6 py-2 rounded-xl font-bold">Batal</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-ultah">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="bg-white p-3 rounded-2xl shadow-sm">🎂</div>
+                <h3 id="current-month-text" class="text-2xl font-black text-slate-900">Bulan Ini</h3>
+            </div>
+            <div id="ultah-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <section id="tab-jemaat">
+            <div class="admin-only glass-card p-6 mb-8 transform transition-all hover:scale-[1.01]">
+                <h4 class="text-sm font-bold text-slate-500 uppercase mb-4">Input Data Baru</h4>
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div class="md:col-span-4">
+                        <input id="jn" placeholder="Nama Lengkap" class="w-full bg-white p-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="md:col-span-3">
+                        <input id="j-tgl" type="date" class="w-full bg-white p-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500 text-slate-600">
+                    </div>
+                    <div class="md:col-span-3">
+                        <input id="ja" placeholder="Alamat / Domisili" class="w-full bg-white p-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-500">
+                    </div>
+                    <div class="md:col-span-2">
+                        <button onclick="addJ()" class="w-full h-full bg-slate-900 text-white rounded-xl font-bold hover:bg-indigo-600 transition">Simpan</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left" id="table-jemaat">
+                        <thead class="bg-slate-50/50 border-b border-slate-100">
+                            <tr>
+                                <th class="p-6 text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Nama</th>
+                                <th class="p-6 text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Tgl Lahir</th>
+                                <th class="p-6 text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">Alamat</th>
+                                <th class="admin-only p-6 text-[10px] font-extrabold uppercase text-slate-500 text-right">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="t-j" class="divide-y divide-slate-50 text-sm font-medium text-slate-700"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-keuangan">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 p-8 rounded-[32px] text-white shadow-xl relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                        <p class="text-indigo-200 text-xs font-bold uppercase mb-1">Total Saldo Kas</p>
+                        <h2 id="total-s" class="text-3xl md:text-4xl font-black tracking-tight">Rp 0</h2>
+                        <p class="text-[10px] mt-4 opacity-70 italic">*Update Realtime</p>
+                    </div>
+                    
+                    <div class="admin-only glass-card p-6">
+                        <h4 class="text-sm font-bold text-slate-500 uppercase mb-4">Catat Transaksi</h4>
+                        <div class="space-y-3">
+                            <input id="kk" placeholder="Keterangan (Contoh: Perpuluhan)" class="w-full bg-white p-3 rounded-xl border border-slate-200 outline-none">
+                            <select id="kt" class="w-full bg-white p-3 rounded-xl border border-slate-200 outline-none text-slate-700 font-bold">
+                                <option value="in">🟢 Pemasukan (+)</option>
+                                <option value="out">🔴 Pengeluaran (-)</option>
+                            </select>
+                            <input id="kj" type="number" placeholder="Nominal (Rp)" class="w-full bg-white p-3 rounded-xl border border-slate-200 outline-none">
+                            <button onclick="addK()" class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 rounded-xl font-bold transition">Catat Data</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2">
+                    <div class="glass-card overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left" id="table-keuangan">
+                                <thead class="bg-slate-50/50 border-b border-slate-100">
+                                    <tr>
+                                        <th class="p-5 text-[10px] font-extrabold uppercase text-slate-500">Keterangan</th>
+                                        <th class="p-5 text-[10px] font-extrabold uppercase text-slate-500 text-right">Nominal</th>
+                                        <th class="admin-only p-5 w-10"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="t-k" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="tab-lokasi">
+            <div class="glass-card p-2 md:p-4 h-[500px] md:h-[600px] flex flex-col">
+                <div class="bg-white px-4 py-2 rounded-t-[20px] border-b mb-2">
+                    <h3 class="font-bold text-slate-800">Peta Lokasi - Timika</h3>
+                </div>
+                <iframe 
+                    class="w-full h-full rounded-[20px]" 
+                    frameborder="0" 
+                    scrolling="no" 
+                    marginheight="0" 
+                    marginwidth="0" 
+                    src="https://maps.google.com/maps?q=Timika,%20Papua&t=&z=13&ie=UTF8&iwloc=&output=embed">
+                </iframe>
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="modal-login" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+    <div class="bg-white p-8 rounded-[32px] w-full max-w-[360px] text-center shadow-2xl animate-bounce-in">
+        <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🔒</div>
+        <h3 class="text-xl font-black text-slate-900 mb-2">Area Terbatas</h3>
+        <p class="text-slate-500 text-sm mb-6">Masukkan kode akses pengurus</p>
+        <input id="login-pass" type="password" class="w-full mb-4 bg-slate-50 p-4 rounded-xl text-center outline-none border border-slate-200 focus:border-indigo-500 font-bold text-xl tracking-widest placeholder:text-sm placeholder:font-normal placeholder:tracking-normal" placeholder="******">
+        <button onclick="attemptLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold transition">Buka Akses</button>
+        <button onclick="closeLoginModal()" class="mt-4 text-slate-400 text-sm hover:text-slate-600 font-bold">Batal</button>
+    </div>
+</div>
+
+<script>
+    /* ==========================================
+       KONFIGURASI & STATE
+       ========================================== */
+    const KEYS = { 
+        STATUS: 'efata_status', 
+        ADMIN_PASS: 'efata_pass_db', 
+        CONTENT: 'efata_content', 
+        BG: 'efata_bg_img', 
+        LOGO: 'efata_logo_img',
+        STRUKTUR: 'efata_struktur_db',
+        JEMAAT: 'efata_jemaat',
+        UANG: 'efata_uang'
+    };
+
+    let adminPass = localStorage.getItem(KEYS.ADMIN_PASS) || 'admin'; 
+
+    // Data Default (Jika LocalStorage Kosong)
+    let db_j = JSON.parse(localStorage.getItem(KEYS.JEMAAT)) || [
+        { n: "Yohanes Pakage", tgl: "1998-05-12", a: "Jl. Cenderawasih SP2" },
+        { n: "Maria Sombor", tgl: "2001-08-20", a: "Jl. Hasanuddin" }
+    ];
+    let db_k = JSON.parse(localStorage.getItem(KEYS.UANG)) || [
+        { k: "Saldo Awal Tahun", j: "5000000", t: "in", d: "01/01/2026" }
+    ];
+    let db_content = JSON.parse(localStorage.getItem(KEYS.CONTENT)) || { 
+        v: "Menjadi Generasi yang Berakar, Bertumbuh, dan Berbuah bagi Kristus di Tanah Papua.", 
+        m: "1. Membangun kerohanian pemuda yang sehat.\n2. Mengabarkan kabar baik melalui tindakan nyata.\n3. Melayani dengan integritas dan kasih.",
+        jadwal: "Minggu, 09:00 WIT - Ibadah Raya\nJumat, 17:00 WIT - Ibadah Pemuda\nSabtu, 16:00 WIT - Latihan Musik" 
+    };
+    let db_s = JSON.parse(localStorage.getItem(KEYS.STRUKTUR)) || [
+        { id: 1, n: "Nama Ketua", j: "Ketua Pemuda", img: "" },
+        { id: 2, n: "Nama Sekretaris", j: "Sekretaris", img: "" }
+    ];
+
+    /* ==========================================
+       CORE FUNCTIONS
+       ========================================== */
+    function initSystem() {
+        // Cek Login State
+        applyAccessControl();
+        
+        // Load Background & Logo
+        const savedBG = localStorage.getItem(KEYS.BG);
+        if(savedBG) document.body.style.backgroundImage = `url(${savedBG})`;
+        
+        const savedLogo = localStorage.getItem(KEYS.LOGO);
+        if(savedLogo) {
+            const img = document.getElementById('logo-img');
+            img.src = savedLogo;
+            img.classList.remove('hidden');
+            document.getElementById('logo-text').classList.add('hidden');
+        }
+
+        // Render Semua Data
+        loadContent(); 
+        drawJ(); 
+        drawK(); 
+        drawStruktur();
+    }
+
+    // Fungsi untuk menerapkan tampilan Admin/Visitor pada elemen statis & dinamis
+    function applyAccessControl() {
+        const isAdmin = localStorage.getItem(KEYS.STATUS) === 'admin';
+        document.body.className = isAdmin ? 'admin-mode' : 'visitor-mode';
+        
+        // Paksa update display style untuk elemen yang dibuat via JS
+        document.querySelectorAll('.admin-only').forEach(el => {
+            if(!isAdmin) el.style.setProperty('display', 'none', 'important');
+            else el.style.display = '';
+        });
+        document.querySelectorAll('.visitor-only').forEach(el => {
+            if(isAdmin) el.style.setProperty('display', 'none', 'important');
+            else el.style.display = '';
+        });
+    }
+
+    function switchTab(id, btn) {
+        // UI Tabs
+        document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+        document.getElementById('tab-' + id).classList.add('active');
+        
+        document.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Judul Halaman
+        const titleMap = {
+            'visimisi': 'Visi & Misi', 'struktur': 'Struktur Organisasi',
+            'jadwal': 'Jadwal Ibadah', 'ultah': 'Ulang Tahun',
+            'jemaat': 'Data Pemuda', 'keuangan': 'Laporan Keuangan', 'lokasi': 'Lokasi'
+        };
+        document.getElementById('page-title').innerText = titleMap[id];
+        
+        // Tombol Export hanya muncul di tab tertentu
+        const canExport = ['jemaat', 'keuangan'].includes(id);
+        const headerBtns = document.getElementById('header-btns');
+        if(canExport && localStorage.getItem(KEYS.STATUS) === 'admin') {
+            headerBtns.classList.remove('hidden');
+        } else {
+            headerBtns.classList.add('hidden');
+        }
+
+        // Refresh Data Spesifik
+        if(id === 'ultah') loadUltah();
+        
+        // Mobile Sidebar Close
+        if(window.innerWidth < 768) toggleSidebar();
+    }
+
+    /* ==========================================
+       IMAGE HANDLING (COMPRESSION)
+       ========================================== */
+    // Mencegah Crash LocalStorage dengan resize gambar
+    function processImage(input, type) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    // Max width 800px untuk background, 200px untuk logo/profil
+                    const maxWidth = type === 'bg' ? 800 : 200; 
+                    const scale = maxWidth / img.width;
+                    
+                    canvas.width = maxWidth;
+                    canvas.height = img.height * scale;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // Kompres ke JPEG kualitas 0.7
+                    const compressed = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    try {
+                        if(type === 'bg') {
+                            localStorage.setItem(KEYS.BG, compressed);
+                            document.body.style.backgroundImage = `url(${compressed})`;
+                        } else if(type === 'logo') {
+                            localStorage.setItem(KEYS.LOGO, compressed);
+                            document.getElementById('logo-img').src = compressed;
+                            document.getElementById('logo-img').classList.remove('hidden');
+                            document.getElementById('logo-text').classList.add('hidden');
+                        }
+                    } catch (err) {
+                        alert("Penyimpanan Penuh! Hapus beberapa data lama.");
+                    }
+                }
+            }
+            reader.readAsDataURL(file);
+        }
+    }
+
+    /* ==========================================
+       STRUKTUR ORGANISASI
+       ========================================== */
+    function drawStruktur() {
+        const grid = document.getElementById('struktur-grid');
+        grid.innerHTML = db_s.map((s) => `
+            <div class="glass-card p-6 flex flex-col items-center text-center relative group hover:shadow-lg transition">
+                <button onclick="delStruktur(${s.id})" class="admin-only absolute top-3 right-3 text-rose-400 hover:text-rose-600 bg-rose-50 p-2 rounded-full transition">🗑️</button>
+                
+                <div class="relative mb-4">
+                    <img src="${s.img || 'https://via.placeholder.com/150?text=Foto'}" class="profile-img-slot" id="img-prev-${s.id}">
+                    <input type="file" class="hidden" id="file-${s.id}" accept="image/*" onchange="updateStrukImg(${s.id}, this)">
+                    <button onclick="document.getElementById('file-${s.id}').click()" class="admin-only absolute bottom-0 right-0 bg-indigo-600 text-white w-8 h-8 rounded-full shadow-lg border-2 border-white flex items-center justify-center text-xs">📷</button>
+                </div>
+                
+                <div class="admin-only w-full space-y-2">
+                    <input onchange="updateStrukData(${s.id}, 'n', this.value)" value="${s.n}" class="w-full bg-white/50 border border-slate-200 rounded-lg p-2 text-center font-bold text-sm focus:bg-white" placeholder="Nama">
+                    <input onchange="updateStrukData(${s.id}, 'j', this.value)" value="${s.j}" class="w-full bg-white/50 border border-slate-200 rounded-lg p-2 text-center text-xs focus:bg-white" placeholder="Jabatan">
+                </div>
+                
+                <div class="visitor-only">
+                    <h4 class="text-lg font-black text-slate-800">${s.n}</h4>
+                    <p class="text-indigo-600 font-bold text-xs uppercase tracking-wider mt-1">${s.j}</p>
+                </div>
+            </div>
+        `).join('');
+        applyAccessControl(); // Re-apply visibility rule
+    }
+
+    function addStruktur() {
+        db_s.push({ id: Date.now(), n: "Nama Baru", j: "Jabatan", img: "" });
+        saveStruktur();
+    }
+    
+    function delStruktur(id) {
+        if(confirm('Hapus pengurus ini?')) {
+            db_s = db_s.filter(x => x.id !== id);
+            saveStruktur();
+        }
+    }
+
+    function updateStrukData(id, key, val) {
+        const item = db_s.find(x => x.id === id);
+        if(item) { item[key] = val; saveStruktur(); }
+    }
+
+    function updateStrukImg(id, input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 200; // Resize avatar
+                    canvas.height = (img.height/img.width) * 200;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    const item = db_s.find(x => x.id === id);
+                    item.img = canvas.toDataURL('image/jpeg', 0.7);
+                    saveStruktur();
+                }
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function saveStruktur() {
+        localStorage.setItem(KEYS.STRUKTUR, JSON.stringify(db_s));
+        drawStruktur();
+    }
+
+    /* ==========================================
+       DATA JEMAAT & KEUANGAN
+       ========================================== */
+    function drawJ() {
+        const tBody = document.getElementById('t-j');
+        if(db_j.length === 0) {
+            tBody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">Belum ada data pemuda</td></tr>`;
+        } else {
+            tBody.innerHTML = db_j.map((j, i) => `
+                <tr class="hover:bg-indigo-50/50 transition border-b border-slate-50">
+                    <td class="p-6 font-bold text-slate-800">${j.n}</td>
+                    <td class="p-6 text-slate-500">${new Date(j.tgl).toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'})}</td>
+                    <td class="p-6 text-slate-500 text-sm">${j.a}</td>
+                    <td class="p-6 admin-only text-right">
+                        <button onclick="delJ(${i})" class="text-rose-400 hover:text-rose-600 font-bold text-xs bg-rose-50 px-3 py-1 rounded-lg">Hapus</button>
+                    </td>
+                </tr>
+            `).reverse().join('');
+        }
+        localStorage.setItem(KEYS.JEMAAT, JSON.stringify(db_j));
+        applyAccessControl();
+    }
+
+    function addJ() {
+        const n=document.getElementById('jn'), t=document.getElementById('j-tgl'), a=document.getElementById('ja');
+        if(n.value && t.value) {
+            db_j.push({n:n.value, tgl:t.value, a:a.value});
+            n.value=''; a.value=''; t.value='';
+            drawJ();
+        } else { alert("Nama dan Tanggal Lahir wajib diisi"); }
+    }
+    
+    function delJ(i) { if(confirm('Hapus data ini?')) { db_j.splice(db_j.length - 1 - i, 1); drawJ(); } } // Reverse index logic
+
+    function drawK() {
+        let tot = 0;
+        const tBody = document.getElementById('t-k');
+        
+        if(db_k.length === 0) {
+            tBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-slate-400 italic">Belum ada transaksi</td></tr>`;
+        } else {
+            tBody.innerHTML = db_k.map((k, i) => {
+                const v = parseInt(k.j);
+                if(k.t === 'in') tot += v; else tot -= v;
+                return `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-5">
+                        <p class="font-bold text-slate-800">${k.k}</p>
+                        <p class="text-[10px] text-slate-400 font-normal">${k.d}</p>
+                    </td>
+                    <td class="p-5 text-right font-bold font-mono text-sm ${k.t === 'in' ? 'text-emerald-600' : 'text-rose-600'}">
+                        ${k.t === 'in' ? '+' : '-'} Rp ${v.toLocaleString('id-ID')}
+                    </td>
+                    <td class="admin-only p-5 text-right">
+                        <button onclick="delK(${i})" class="text-slate-300 hover:text-rose-500">✕</button>
+                    </td>
+                </tr>`;
+            }).reverse().join('');
+        }
+        document.getElementById('total-s').innerText = 'Rp ' + tot.toLocaleString('id-ID');
+        localStorage.setItem(KEYS.UANG, JSON.stringify(db_k));
+        applyAccessControl();
+    }
+
+    function addK() {
+        const k=document.getElementById('kk'), j=document.getElementById('kj'), t=document.getElementById('kt');
+        if(k.value && j.value) {
+            db_k.push({
+                k: k.value, 
+                j: j.value, 
+                t: t.value, 
+                d: new Date().toLocaleDateString('id-ID', {day:'numeric', month:'short', year:'numeric'})
+            });
+            k.value=''; j.value='';
+            drawK();
+        }
+    }
+    
+    function delK(i) { if(confirm('Hapus transaksi?')) { db_k.splice(db_k.length - 1 - i, 1); drawK(); } }
+
+    /* ==========================================
+       VISI MISI & JADWAL & ULTAH
+       ========================================== */
+    function loadContent() {
+        document.getElementById('v-text').innerText = db_content.v;
+        document.getElementById('m-text').innerText = db_content.m;
+        document.getElementById('v-input').value = db_content.v;
+        document.getElementById('m-input').value = db_content.m;
+        
+        // Render Jadwal
+        document.getElementById('jadwal-view').innerHTML = db_content.jadwal.split('\n').filter(x=>x).map(j => `
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-indigo-50 flex items-center gap-4">
+                <div class="bg-indigo-100 text-indigo-600 p-3 rounded-xl text-xl">📅</div>
+                <div class="font-bold text-slate-700 text-sm">${j}</div>
+            </div>
+        `).join('');
+        document.getElementById('jadwal-input').value = db_content.jadwal;
+    }
+
+    function toggleEdit(type) {
+        document.getElementById(type + '-view').classList.toggle('hidden');
+        document.getElementById(type + '-edit').classList.toggle('hidden');
+    }
+
+    function saveEdit(type) {
+        if(type === 'vm') {
+            db_content.v = document.getElementById('v-input').value;
+            db_content.m = document.getElementById('m-input').value;
+        } else if(type === 'jadwal') {
+            db_content.jadwal = document.getElementById('jadwal-input').value;
+        }
+        localStorage.setItem(KEYS.CONTENT, JSON.stringify(db_content));
+        loadContent();
+        toggleEdit(type);
+    }
+
+    function loadUltah() {
+        const mNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+        const now = new Date(); 
+        const m = now.getMonth();
+        
+        document.getElementById('current-month-text').innerText = "Bulan " + mNames[m];
+        
+        const filtered = db_j.filter(j => new Date(j.tgl).getMonth() === m);
+        const container = document.getElementById('ultah-list');
+        
+        if(filtered.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-full py-12 text-center opacity-50">
+                    <div class="text-4xl mb-2">🍃</div>
+                    <p class="font-bold">Tidak ada yang ulang tahun bulan ini.</p>
+                </div>`;
+        } else {
+            container.innerHTML = filtered.map(j => {
+                const date = new Date(j.tgl);
+                return `
+                <div class="glass-card p-6 flex items-center gap-4 border-l-4 border-l-indigo-500">
+                    <div class="bg-indigo-50 w-12 h-12 rounded-xl flex flex-col items-center justify-center text-indigo-600 shrink-0 border border-indigo-100">
+                        <span class="text-xs font-bold uppercase">${mNames[m].substring(0,3)}</span>
+                        <span class="text-lg font-black leading-none">${date.getDate()}</span>
+                    </div>
+                    <div>
+                        <h4 class="font-black text-slate-800 text-lg">${j.n}</h4>
+                        <p class="text-xs text-slate-500 font-medium">Usia: ${now.getFullYear() - date.getFullYear()} th</p>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+    }
+
+    /* ==========================================
+       EXPORT PDF & EXCEL
+       ========================================== */
+    function exportData(type) {
+        const activeTab = document.querySelector('section.active').id;
+        let filename, tableId;
+
+        if (activeTab === 'tab-jemaat') {
+            filename = 'Data_Pemuda_Efata';
+            tableId = 'table-jemaat';
+        } else if (activeTab === 'tab-keuangan') {
+            filename = 'Laporan_Keuangan_Efata';
+            tableId = 'table-keuangan';
+        } else {
+            alert('Fitur ini hanya untuk halaman Data Pemuda & Keuangan');
+            return;
+        }
+
+        if (type === 'excel') {
+            // Clone table untuk membuang kolom aksi sebelum export
+            let originalTable = document.getElementById(tableId);
+            let tableClone = originalTable.cloneNode(true);
+            
+            // Hapus kolom terakhir (kolom aksi) di setiap baris
+            let rows = tableClone.querySelectorAll('tr');
+            rows.forEach(row => {
+                if(row.cells.length > 0) row.deleteCell(-1);
+            });
+
+            const wb = XLSX.utils.table_to_book(tableClone, {sheet: "Sheet 1"});
+            XLSX.writeFile(wb, filename + '.xlsx');
+        } 
+        else if (type === 'pdf') {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            doc.setFontSize(18);
+            doc.text("BIBLE GENERATION EFATA TIMIKA", 14, 20);
+            doc.setFontSize(12);
+            doc.text(filename.replace(/_/g, ' '), 14, 30);
+            
+            doc.autoTable({ 
+                html: '#' + tableId,
+                startY: 40,
+                theme: 'grid',
+                styles: { fontSize: 8 },
+                columns: activeTab === 'tab-jemaat' 
+                    ? [{dataKey: 0}, {dataKey: 1}, {dataKey: 2}] // Skip column 3 (action)
+                    : [{dataKey: 0}, {dataKey: 1}] // Skip column 2
+            });
+            
+            doc.save(filename + '.pdf');
+        }
+    }
+
+    /* ==========================================
+       UI UTILS
+       ========================================== */
+    function toggleSidebar() { 
+        document.querySelector('aside').classList.toggle('mobile-open'); 
+        document.querySelector('.overlay-mobile').classList.toggle('active');
+    }
+    
+    function openLoginModal() { document.getElementById('modal-login').classList.replace('hidden', 'flex'); }
+    function closeLoginModal() { document.getElementById('modal-login').classList.replace('flex', 'hidden'); }
+    
+    function attemptLogin() {
+        const pass = document.getElementById('login-pass').value;
+        if(pass === adminPass) {
+            localStorage.setItem(KEYS.STATUS, 'admin');
+            location.reload();
+        } else {
+            alert('Password Salah!');
+        }
+    }
+    
+    function doLogout() {
+        localStorage.removeItem(KEYS.STATUS);
+        location.reload();
+    }
+    
+    function openPassModal() {
+        const p = prompt("Masukkan Password Admin Baru (Min 4 karakter):");
+        if(p && p.length >= 4) {
+            localStorage.setItem(KEYS.ADMIN_PASS, p);
+            adminPass = p;
+            alert("Password berhasil diubah!");
+        } else if (p) {
+            alert("Password terlalu pendek.");
+        }
+    }
+
+    // Start App
+    window.onload = initSystem;
+</script>
+</body>
+</html>
